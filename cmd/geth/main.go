@@ -32,6 +32,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/console"
+	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/internal/debug"
@@ -279,6 +280,9 @@ func startNode(ctx *cli.Context, stack *node.Node) {
 
 	// Unlock any account specifically requested
 	ks := stack.AccountManager().Backends(keystore.KeyStoreType)[0].(*keystore.KeyStore)
+
+	//fmt.Printf("Setting db handler %v on the checker object\n", stack.GetDbHandler())
+	vm.TheChecker().SetDbHandler(stack.GetDbHandler())
 
 	passwords := utils.MakePasswordList(ctx)
 	unlocks := strings.Split(ctx.GlobalString(utils.UnlockedAccountFlag.Name), ",")

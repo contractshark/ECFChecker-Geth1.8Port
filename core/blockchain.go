@@ -18,6 +18,7 @@
 package core
 
 import (
+    "database/sql"
 	"errors"
 	"fmt"
 	"io"
@@ -43,7 +44,7 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
-	"github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru"
 )
 
 var (
@@ -136,6 +137,9 @@ type BlockChain struct {
 
 	badBlocks      *lru.Cache              // Bad block cache
 	shouldPreserve func(*types.Block) bool // Function used to determine whether should preserve the given block.
+
+    // ECF
+	DbHandler *sql.DB // Pointer to DB handler
 }
 
 // NewBlockChain returns a fully initialised block chain using information

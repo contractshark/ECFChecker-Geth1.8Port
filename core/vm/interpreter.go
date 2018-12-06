@@ -149,9 +149,17 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 		}()
 	}
 
+	// SHELLY START
+	TheChecker().UponEVMStart(in.evm, contract)
+	// SHELLY END
+
 	// Increment the call depth which is restricted to 1024
 	in.evm.depth++
 	defer func() { in.evm.depth-- }()
+
+	// SHELLY START
+	defer TheChecker().UponEVMEnd(in.evm, contract)
+	// SHELLY END
 
 	// Make sure the readOnly is only set if we aren't in readOnly yet.
 	// This makes also sure that the readOnly flag isn't removed for child calls.

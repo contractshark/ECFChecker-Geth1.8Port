@@ -37,6 +37,8 @@ var (
 	errMaxCodeSizeExceeded   = errors.New("evm: max code size exceeded")
 )
 
+var storageDebug = false
+
 func opAdd(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	x, y := stack.pop(), stack.peek()
 	math.U256(y.Add(x, y))
@@ -627,9 +629,17 @@ func opMstore8(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memo
 }
 
 func opSload(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	loc := stack.peek()
-	val := interpreter.evm.StateDB.GetState(contract.Address(), common.BigToHash(loc))
-	loc.SetBytes(val.Bytes())
+	// this is optimized code from go-ethereum 1.8
+	//loc := stack.peek()
+	//val := interpreter.evm.StateDB.GetState(contract.Address(), common.BigToHash(loc))
+	//loc.SetBytes(val.Bytes())
+
+	// ECF
+	loc := common.BigToHash(stack.pop())
+	val := interpreter.evm.StateDB.GetState(contract.Address(), loc).Big()
+	stack.push(val)
+	TheChecker().UponSLoad(interpreter.evm, contract, loc, val)
+
 	return nil, nil
 }
 
@@ -637,6 +647,9 @@ func opSstore(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memor
 	loc := common.BigToHash(stack.pop())
 	val := stack.pop()
 	interpreter.evm.StateDB.SetState(contract.Address(), loc, common.BigToHash(val))
+
+	// ECF
+	TheChecker().UponSStore(interpreter.evm, contract, loc, val)
 
 	interpreter.intPool.put(val)
 	return nil, nil
@@ -646,8 +659,10 @@ func opJump(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory 
 	pos := stack.pop()
 	if !contract.validJumpdest(pos) {
 		nop := contract.GetOp(pos.Uint64())
+		// TheChecker().UponInvalidJump(interpreter, contract, nop, pos, false)
 		return nil, fmt.Errorf("invalid jump destination (%v) %v", nop, pos)
 	}
+	// TheChecker().UponJump(env, contract, contract.GetOp(pos.Uint64()), pos, false)
 	*pc = pos.Uint64()
 
 	interpreter.intPool.put(pos)
@@ -659,8 +674,10 @@ func opJumpi(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory
 	if cond.Sign() != 0 {
 		if !contract.validJumpdest(pos) {
 			nop := contract.GetOp(pos.Uint64())
+			// TheChecker().UponInvalidJump(env, contract, nop, pos, true)
 			return nil, fmt.Errorf("invalid jump destination (%v) %v", nop, pos)
 		}
+		// TheChecker().UponJump(env, contract, contract.GetOp(pos.Uint64()), pos, true)
 		*pc = pos.Uint64()
 	} else {
 		*pc++
@@ -760,6 +777,9 @@ func opCall(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory 
 	value = math.U256(value)
 	// Get the arguments from the memory.
 	args := memory.Get(inOffset.Int64(), inSize.Int64())
+
+	// ECF
+	TheChecker().UponCall(interpreter.evm, contract, toAddr, value, args)
 
 	if value.Sign() != 0 {
 		gas += params.CallStipend
@@ -861,6 +881,8 @@ func opStaticCall(pc *uint64, interpreter *EVMInterpreter, contract *Contract, m
 func opReturn(pc *uint64, interpreter *EVMInterpreter, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	offset, size := stack.pop(), stack.pop()
 	ret := memory.GetPtr(offset.Int64(), size.Int64())
+
+	// TheChecker().UponReturn(env, contract, offset, size)
 
 	interpreter.intPool.put(offset, size)
 	return ret, nil

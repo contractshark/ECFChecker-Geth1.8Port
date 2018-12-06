@@ -11,6 +11,16 @@
 GOBIN = $(shell pwd)/build/bin
 GO ?= latest
 
+gethFirstTime:
+	@echo "Fetching dependencies with go get"
+	build/env.sh go get github.com/mattn/go-sqlite3
+	build/env.sh go get github.com/golang-collections/collections
+	build/env.sh go get gopkg.in/fatih/set.v0
+	@echo "Running Build"
+	build/env.sh go run build/ci.go install ./cmd/geth
+	@echo "Done building."
+	@echo "Run \"$(GOBIN)/geth\" to launch geth."
+
 geth:
 	build/env.sh go run build/ci.go install ./cmd/geth
 	@echo "Done building."
